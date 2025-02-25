@@ -4,9 +4,8 @@ FROM brakmic/cppdev:latest
 ARG NONROOT_USER=cppdev
 ENV NONROOT_USER=${NONROOT_USER}
 ENV HOME=/home/${NONROOT_USER}
-ENV NVM_DIR=/usr/local/nvm
 
-# Set Node.js version to major version only for flexibility
+# Set Node.js version to major version
 ARG NODE_VERSION=22
 ENV NODE_VERSION=${NODE_VERSION}
 
@@ -15,14 +14,9 @@ USER root
 ###############################################################################
 # (1) Install NVM, Node.js, and Global npm Packages
 ###############################################################################
-RUN mkdir -p $NVM_DIR && \
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
-    bash -c "source $NVM_DIR/nvm.sh && \
-            nvm install $NODE_VERSION && \
-            nvm alias default $NODE_VERSION && \
-            nvm use default && \
-            node -v && npm -v && \
-            npm install -g typescript tsx eslint prettier node-gyp nodemon"
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && apt install -y nodejs && \
+    npm install -g typescript tsx node-gyp yarn nodemon eslint
 
 ###############################################################################
 # (2) Install Docker
@@ -62,7 +56,7 @@ RUN groupadd -f docker \
 ###############################################################################
 WORKDIR /workspace
 RUN mkdir -p /home/${NONROOT_USER}/.docker && \
-    chown -R ${NONROOT_USER}:${NONROOT_USER} /workspace ${NVM_DIR} ${HOME}
+    chown -R ${NONROOT_USER}:${NONROOT_USER} /workspace ${HOME}
 
 # Ensure that the ${NONROOT_USER} user has the correct permissions for Docker
 RUN mkdir -p ${HOME}/.docker \
@@ -72,16 +66,6 @@ RUN mkdir -p ${HOME}/.docker \
 USER ${NONROOT_USER}
 
 ###############################################################################
-#  (6)Configure Shell Environment
-###############################################################################
-RUN cp /etc/skel/.bashrc ${HOME}/.bashrc \
-    && cp /etc/skel/.profile ${HOME}/.profile
-
-# Source NVM in bashrc
-RUN echo 'export NVM_DIR=/usr/local/nvm' >> ${HOME}/.bashrc && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ${HOME}/.bashrc
-
-###############################################################################
-# (7) Set default command to start an interactive bash shell
+# (6) Set default command to start an interactive bash shell
 ###############################################################################
 CMD ["bash", "-i"]
