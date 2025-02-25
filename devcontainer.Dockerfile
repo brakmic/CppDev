@@ -72,6 +72,16 @@ RUN mkdir -p ${HOME}/.docker \
 USER ${NONROOT_USER}
 
 ###############################################################################
-# (6) Set default command to start an interactive bash shell
+#  (6)Configure Shell Environment
+###############################################################################
+RUN cp /etc/skel/.bashrc ${HOME}/.bashrc \
+    && cp /etc/skel/.profile ${HOME}/.profile
+
+# Source NVM in bashrc
+RUN echo 'export NVM_DIR=/usr/local/nvm' >> ${HOME}/.bashrc && \
+    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ${HOME}/.bashrc
+
+###############################################################################
+# (7) Set default command to start an interactive bash shell
 ###############################################################################
 CMD ["bash", "-i"]
