@@ -62,9 +62,12 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
 ###############################################################################
 # (5) Install nano syntax highlighting
 ###############################################################################
-RUN mkdir -p /usr/share/nano-syntax \
-    && curl -fsSL https://raw.githubusercontent.com/scopatz/nanorc/master/install.sh \
-       | bash
+RUN git clone https://github.com/scopatz/nanorc.git /tmp/nanorc \
+    && mkdir -p /usr/share/nano-syntax \
+    && cp -r /tmp/nanorc/* /usr/share/nano-syntax \
+    && find /usr/share/nano-syntax -type f -name '*.nanorc' \
+         -exec sh -c 'echo "include $1" >> /etc/nanorc' _ {} \; \
+    && rm -rf /tmp/nanorc
 
 ###############################################################################
 # (6) Create a non-root user with passwordless sudo
