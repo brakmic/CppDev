@@ -21,6 +21,10 @@ RUN apt update && apt install -y --no-install-recommends \
     nano \
     unzip \
     build-essential \
+    autoconf \
+    automake \
+    libtool \
+    pkg-config \
     gcc-14 \
     g++-14 \
     cmake \
