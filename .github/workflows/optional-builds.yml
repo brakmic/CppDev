@@ -1,0 +1,55 @@
+name: Optional variants
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: optional-builds
+  cancel-in-progress: true
+
+jobs:
+  gcc-13:
+    name: GCC 13
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build base image with GCC 13
+        run: docker build --build-arg GCC_VERSION=13 -t cppdev:gcc13 .
+
+      - name: Smoke test GCC 13 image
+        run: bash scripts/smoke-test.sh cppdev:gcc13 13
+
+  extra-tools:
+    name: Optional tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build base image with optional tools
+        run: docker build --build-arg INSTALL_EXTRA_TOOLS=true -t cppdev:extra .
+
+      - name: Smoke test optional tooling image
+        run: bash scripts/smoke-test.sh cppdev:extra 14
+
+      - name: Verify optional tools
+        run: |
+          docker run --rm cppdev:extra bash -lc '
+            clang-format --version &&
+            clang-tidy --version &&
+            cppcheck --version &&
+            gcovr --version &&
+            lcov --version &&
+            meson --version &&
+            pipx --version &&
+            gdbserver --version
+          '

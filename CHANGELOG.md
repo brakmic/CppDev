@@ -17,6 +17,8 @@ All notable changes to this project are documented here. The format follows Keep
 - Third-party notice and contributing guide.
 - `ccache` in the base image.
 - `python3-venv` in the base image.
+- A security policy with private vulnerability reporting instructions.
+- A scheduled workflow that tests the GCC 13 and optional tooling variants.
 
 ### Changed
 
@@ -34,6 +36,10 @@ All notable changes to this project are documented here. The format follows Keep
 - lsd is updated to 1.2.0 and verified with SHA-256 checksums for amd64 and arm64.
 - The Docker repository key is stored in `/etc/apt/keyrings`, and the codename is read from `/etc/os-release`.
 - `TERM` is no longer set in the image.
+- The release workflow pins hosted runners to Ubuntu 24.04, limits job runtime, and publishes GHCR images before logging in to Docker Hub.
+- GitHub Releases are created from signed tag annotations.
+- GHCR images built by the release workflow include SBOM and build provenance attestations.
+- The Docker Hub release token is stored only in the protected release environment and does not expire. The documentation explains rotation on exposure and the two-factor requirement.
 
 ### Fixed
 

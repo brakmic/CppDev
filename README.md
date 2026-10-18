@@ -192,6 +192,8 @@ The CI workflow builds and smoke tests both images on every push and pull reques
 - `brakmic/cppdev` and `ghcr.io/<owner>/cppdev` for `linux/amd64` and `linux/arm64`,
 - `brakmic/cppdev:devcontainer` and `ghcr.io/<owner>/cppdev:devcontainer`.
 
+The same tag creates a GitHub Release from its signed annotation.
+
 Docker Hub publishing requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Store them as environment secrets in a `release` environment with required reviewers. The publish job runs in that environment, so tag releases wait for approval before the credentials are released. If either secret is missing, only GHCR is published. GHCR publishing uses the built-in, short-lived `GITHUB_TOKEN`.
 
 Use a dedicated Docker Hub personal access token with read and write permissions only. Do not grant delete or account administration permissions. Store the token only in the protected `release` environment. GitHub does not renew Docker Hub tokens, so a non-expiring token keeps routine releases fully automatic; rotate it immediately if it is exposed or suspected compromised. Keep two-factor authentication enabled on the Docker Hub account.
@@ -211,6 +213,7 @@ Docker Hub automated builds are disabled for this repository. GitHub Actions is 
 - The image is a development environment, not a hardened runtime image.
 - The Docker Hub token is passed only to the login step and is never exported as a job-wide environment variable.
 - GitHub Actions used by the workflow are pinned to commit SHAs.
+- GHCR images built by the release workflow include SBOM and build provenance attestations.
 - The publish job has `packages: write` permission only in the release job; the build job is read-only.
 - Enable secret scanning and push protection for the repository to catch accidental credential commits.
 
