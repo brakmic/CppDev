@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format follows Keep
 
 ### Changed
 
+- The release workflow uses the current major versions of the Docker GitHub Actions with the Node.js 24 runtime.
 - Docker Hub publishing requires both `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`; if either is missing, Docker Hub steps are skipped.
 - The shell environment exports `EDITOR` and `VISUAL` in interactive shells, and login shells now load `.bashrc` through `.bash_profile`.
 - Package installation runs non-interactively with `apt-get` and removes package lists after every step.
