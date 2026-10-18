@@ -54,7 +54,14 @@ run bash -lc 'grep -q nano-syntax /etc/nanorc && test -f /usr/share/doc/nanorc-s
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workdir="$(mktemp -d)"
-trap 'rm -rf "${workdir}"' EXIT
+
+cleanup() {
+    # Build output is owned by the container user, so remove it from inside
+    # the container before deleting the host directory.
+    docker run --rm -v "${workdir}:/workspace" "$image" rm -rf /workspace/build >/dev/null 2>&1 || true
+    rm -rf "${workdir}"
+}
+trap cleanup EXIT
 
 cp -a "${repo_root}/examples/cmake-hello/." "${workdir}/"
 chmod -R a+rwX "${workdir}"

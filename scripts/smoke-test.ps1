@@ -86,6 +86,7 @@ try {
     }
 }
 finally {
+    & docker run --rm -v "${work}:/workspace" $Image rm -rf /workspace/build *> $null
     Remove-Item -Path $work -Recurse -Force
 }
 
