@@ -1,0 +1,28 @@
+{
+  "name": "CppDev",
+  "build": {
+    "dockerfile": "../devcontainer.Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "cppdev",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "postStartCommand": "if [ -S /var/run/docker.sock ]; then sudo chmod 666 /var/run/docker.sock; fi",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools-extension-pack",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "C_Cpp.default.cppStandard": "c++23",
+        "C_Cpp.default.cStandard": "c17",
+        "cmake.configureOnOpen": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

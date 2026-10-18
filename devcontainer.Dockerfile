@@ -1,4 +1,13 @@
-FROM brakmic/cppdev:latest
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=brakmic/cppdev:latest
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="CppDev devcontainer" \
+      org.opencontainers.image.description="CppDev image with Node.js, Docker Engine and lsd for dev container use" \
+      org.opencontainers.image.source="https://github.com/brakmic/CppDev" \
+      org.opencontainers.image.licenses="MIT"
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Set non-root user name
 ARG NONROOT_USER=cppdev
@@ -9,22 +18,32 @@ ENV HOME=/home/${NONROOT_USER}
 ARG NODE_VERSION=22
 ENV NODE_VERSION=${NODE_VERSION}
 
+# Pin lsd and verify the downloaded package
+ARG LSD_VERSION=1.2.0
+ARG LSD_SHA256_AMD64=b212d4c941fa0960c44d94d44039645802a5b7cc8554900e4d53bab5b2574f07
+ARG LSD_SHA256_ARM64=9f799c1258b6acbefbb2135b6128ab4369ea3872fb1d402cb5375aa7184dd677
+
 USER root
 
 ###############################################################################
-# (1) Install NVM, Node.js, and Global npm Packages
+# (1) Install Node.js and global npm packages via NodeSource
 ###############################################################################
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
-    && apt install -y nodejs && \
-    npm install -g typescript tsx node-gyp yarn nodemon eslint
+RUN curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g typescript tsx node-gyp yarn nodemon eslint \
+    && npm cache clean --force \
+    && rm -rf /var/lib/apt/lists/*
 
 ###############################################################################
-# (2) Install Docker
+# (2) Install Docker Engine and CLI for Docker-in-Docker or host socket use
 ###############################################################################
 RUN install -m 0755 -d /etc/apt/keyrings \
-    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
-    | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /tmp/docker.asc \
+    && gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" \
+       > /etc/apt/sources.list.d/docker.list \
+    && rm -f /tmp/docker.asc \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         docker-ce \
@@ -32,35 +51,37 @@ RUN install -m 0755 -d /etc/apt/keyrings \
         containerd.io \
         docker-buildx-plugin \
         docker-compose-plugin \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 ###############################################################################
-# (3) Install lsd
+# (3) Install lsd with a verified checksum
 ###############################################################################
-RUN ARCH=$(dpkg --print-architecture) && \
-    wget "https://github.com/lsd-rs/lsd/releases/download/v1.1.5/lsd_1.1.5_${ARCH}.deb" -O /tmp/lsd.deb && \
-    apt-get update && \
-    apt-get install -y /tmp/lsd.deb && \
-    rm /tmp/lsd.deb && \
-    lsd --version
+RUN ARCH="$(dpkg --print-architecture)" \
+    && case "${ARCH}" in \
+         amd64) LSD_SHA256="${LSD_SHA256_AMD64}" ;; \
+         arm64) LSD_SHA256="${LSD_SHA256_ARM64}" ;; \
+         *) echo "Unsupported architecture: ${ARCH}" >&2; exit 1 ;; \
+       esac \
+    && wget -q "https://github.com/lsd-rs/lsd/releases/download/v${LSD_VERSION}/lsd_${LSD_VERSION}_${ARCH}.deb" -O /tmp/lsd.deb \
+    && echo "${LSD_SHA256}  /tmp/lsd.deb" | sha256sum -c - \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/lsd.deb \
+    && rm -f /tmp/lsd.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && lsd --version
 
 ###############################################################################
-# (4) Add existing user to the Docker group
+# (4) Add the non-root user to the Docker group
 ###############################################################################
 RUN groupadd -f docker \
-&& usermod -aG docker ${NONROOT_USER}
+    && usermod -aG docker "${NONROOT_USER}"
 
 ###############################################################################
-# (5) Adjust File Ownership
+# (5) Prepare the workspace directory
 ###############################################################################
 WORKDIR /workspace
-RUN mkdir -p /home/${NONROOT_USER}/.docker && \
-    chown -R ${NONROOT_USER}:${NONROOT_USER} /workspace ${HOME}
-
-# Ensure that the ${NONROOT_USER} user has the correct permissions for Docker
-RUN mkdir -p ${HOME}/.docker \
-&& chown -R ${NONROOT_USER}:docker ${HOME}/.docker
+RUN mkdir -p "${HOME}/.docker" \
+    && chown -R "${NONROOT_USER}:${NONROOT_USER}" /workspace "${HOME}"
 
 # Switch back to the non-root user
 USER ${NONROOT_USER}

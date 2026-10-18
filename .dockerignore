@@ -1,0 +1,11 @@
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.devcontainer
+examples
+scripts
+Makefile
+*.md
+LICENSE

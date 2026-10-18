@@ -1,15 +1,20 @@
-FROM ubuntu:24.04
+# syntax=docker/dockerfile:1
+ARG UBUNTU_VERSION=24.04
+
+FROM ubuntu:${UBUNTU_VERSION}
+
+LABEL org.opencontainers.image.title="CppDev" \
+      org.opencontainers.image.description="C++ development environment with GCC, CMake, Ninja, GDB and Valgrind" \
+      org.opencontainers.image.source="https://github.com/brakmic/CppDev" \
+      org.opencontainers.image.licenses="MIT"
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 ###############################################################################
-# (1) Configure default system locale settings
+# (1) Install base packages and the default compiler
 ###############################################################################
-ENV LANG=en_US.UTF-8
-ENV LC_ALL=en_US.UTF-8
-
-###############################################################################
-# (2) Install necessary packages and both compiler versions
-###############################################################################
-RUN apt update && apt install -y --no-install-recommends \
+ARG GCC_VERSION=14
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     gnupg \
@@ -25,8 +30,8 @@ RUN apt update && apt install -y --no-install-recommends \
     automake \
     libtool \
     pkg-config \
-    gcc-14 \
-    g++-14 \
+    "gcc-${GCC_VERSION}" \
+    "g++-${GCC_VERSION}" \
     cmake \
     ninja-build \
     make \
@@ -34,6 +39,7 @@ RUN apt update && apt install -y --no-install-recommends \
     git-lfs \
     python3 \
     python3-pip \
+    python3-venv \
     bash-completion \
     locales \
     gdb \
@@ -44,43 +50,71 @@ RUN apt update && apt install -y --no-install-recommends \
     dnsutils \
     strace \
     lsof \
+    ccache \
     && rm -rf /var/lib/apt/lists/*
 
 ###############################################################################
-# (3) Switch default compilers to GCC/G++ 14
+# (2) Optionally install additional tooling
 ###############################################################################
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 50 \
-    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60 \
-    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 50 \
-    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60 \
-    && update-alternatives --set gcc /usr/bin/gcc-14 \
-    && update-alternatives --set g++ /usr/bin/g++-14
+ARG INSTALL_EXTRA_TOOLS=false
+RUN if [ "${INSTALL_EXTRA_TOOLS}" = "true" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends \
+            clang-format \
+            clang-tidy \
+            cppcheck \
+            gcovr \
+            gdbserver \
+            lcov \
+            meson \
+            pipx \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+###############################################################################
+# (3) Switch the default compilers to GCC/G++
+###############################################################################
+RUN update-alternatives --install /usr/bin/gcc gcc "/usr/bin/gcc-${GCC_VERSION}" 100 \
+    && update-alternatives --install /usr/bin/g++ g++ "/usr/bin/g++-${GCC_VERSION}" 100 \
+    && update-alternatives --set gcc "/usr/bin/gcc-${GCC_VERSION}" \
+    && update-alternatives --set g++ "/usr/bin/g++-${GCC_VERSION}"
 
 
 ###############################################################################
 # (4) Configure locales
 ###############################################################################
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen
+ENV LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
 
 ###############################################################################
 # (5) Install nano syntax highlighting
+#     The syntax files come from the GPL-3.0-or-later nanorc project and are
+#     pinned to a fixed commit. Update NANORC_REF intentionally.
 ###############################################################################
-RUN git clone https://github.com/scopatz/nanorc.git /tmp/nanorc \
-    && mkdir -p /usr/share/nano-syntax \
-    && cp -r /tmp/nanorc/* /usr/share/nano-syntax \
-    && find /usr/share/nano-syntax -type f -name '*.nanorc' \
-         -exec sh -c 'echo "include $1" >> /etc/nanorc' _ {} \; \
+ARG NANORC_REF=1aa64a86cf4c750e4d4788ef1a19d7a71ab641dd
+RUN git clone --depth 1 https://github.com/scopatz/nanorc.git /tmp/nanorc \
+    && test "$(git -C /tmp/nanorc rev-parse HEAD)" = "${NANORC_REF}" \
+    && mkdir -p /usr/share/nano-syntax /usr/share/doc/nanorc-syntax \
+    && find /tmp/nanorc -type f -name '*.nanorc' -exec cp {} /usr/share/nano-syntax/ \; \
+    && cp /tmp/nanorc/license /usr/share/doc/nanorc-syntax/LICENSE \
+    && echo 'include "/usr/share/nano-syntax/*.nanorc"' >> /etc/nanorc \
     && rm -rf /tmp/nanorc
 
 ###############################################################################
 # (6) Create a non-root user with passwordless sudo
 ###############################################################################
 ARG NONROOT_USER=cppdev
+ARG USER_UID=1000
+ARG USER_GID=1000
 ENV NONROOT_USER=${NONROOT_USER}
-RUN useradd -m -s /bin/bash ${NONROOT_USER} \
-    && echo "${NONROOT_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${NONROOT_USER} \
-    && chmod 0440 /etc/sudoers.d/${NONROOT_USER}
+RUN userdel --remove ubuntu 2>/dev/null || true; \
+    groupdel ubuntu 2>/dev/null || true; \
+    groupadd --gid "${USER_GID}" "${NONROOT_USER}" \
+    && useradd --uid "${USER_UID}" --gid "${USER_GID}" --create-home --shell /bin/bash "${NONROOT_USER}" \
+    && echo "${NONROOT_USER} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${NONROOT_USER}" \
+    && chmod 0440 "/etc/sudoers.d/${NONROOT_USER}"
 
 ###############################################################################
 # (7) Set default shell to bash
@@ -88,11 +122,11 @@ RUN useradd -m -s /bin/bash ${NONROOT_USER} \
 SHELL ["/bin/bash", "-c"]
 
 ###############################################################################
-# (8) Adjust file ownership for the non-root user
+# (8) Prepare the workspace directory
 ###############################################################################
 WORKDIR /workspace
 ENV HOME=/home/${NONROOT_USER}
-RUN chown -R ${NONROOT_USER}:${NONROOT_USER} /workspace ${HOME}
+RUN chown -R "${NONROOT_USER}:${NONROOT_USER}" /workspace
 
 ###############################################################################
 # (9) Switch to the non-root user
@@ -102,54 +136,53 @@ USER ${NONROOT_USER}
 ###############################################################################
 # (10) Configure default shell environment for the user
 ###############################################################################
-RUN cp /etc/skel/.bashrc ${HOME}/.bashrc \
-    && cp /etc/skel/.profile ${HOME}/.profile
+RUN cp /etc/skel/.bashrc "${HOME}/.bashrc" \
+    && cp /etc/skel/.profile "${HOME}/.profile"
+
+RUN printf '%s\n' \
+    '# Read ~/.bashrc so login shells share the same environment.' \
+    'if [ -f ~/.bashrc ]; then' \
+    '    . ~/.bashrc' \
+    'fi' \
+    > "${HOME}/.bash_profile"
 
 ###############################################################################
 # (11) Add shell aliases
 ###############################################################################
-RUN echo -e '\
-alias ll="ls -la"\n\
-alias la="ls -A"\n\
-alias l="ls -CF"\n\
-alias gs="git status"\n\
-alias ga="git add"\n\
-alias gp="git push"\n\
-alias gl="git log"\n\
-alias rm="rm -i"\n\
-alias cp="cp -i"\n\
-alias mv="mv -i"\n\
-alias nano="nano -c"\n\
-alias ..="cd .."\n\
-alias ...="cd ../.."\n\
-alias ....="cd ../../.."\n\
-' >> ${HOME}/.bash_aliases
+RUN cat > "${HOME}/.bash_aliases" <<'EOF'
+alias ll="ls -la"
+alias la="ls -A"
+alias l="ls -CF"
+alias gs="git status"
+alias ga="git add"
+alias gp="git push"
+alias gl="git log"
+alias rm="rm -i"
+alias cp="cp -i"
+alias mv="mv -i"
+alias nano="nano -c"
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+EOF
 
 ###############################################################################
-# (12) Configure nano with syntax highlighting for the user
+# (12) Configure the interactive shell environment
 ###############################################################################
-RUN echo "include /usr/share/nano-syntax/*.nanorc" >> ${HOME}/.nanorc
+RUN cat >> "${HOME}/.bashrc" <<'EOF'
+
+# Default editor
+export EDITOR=nano
+export VISUAL=nano
+
+# User-local executables (pipx, custom scripts)
+export PATH="${HOME}/.local/bin:${PATH}"
+
+# Colorized prompt
+export PS1='\[\e[0;32m\]\u@\h\[\e[m\]:\[\e[0;34m\]\w\[\e[m\]\$ '
+EOF
 
 ###############################################################################
-# (13) Set nano as the default editor and adjust ownership of config files
-###############################################################################
-RUN echo "export EDITOR=nano" >> ${HOME}/.bash_profile \
-    && chown ${NONROOT_USER}:${NONROOT_USER} \
-       ${HOME}/.bashrc \
-       ${HOME}/.profile \
-       ${HOME}/.bash_profile \
-       ${HOME}/.nanorc
-
-###############################################################################
-# (14) Customize the terminal prompt for the user
-###############################################################################
-ENV TERM=xterm-256color
-RUN echo "\
-# Colorized PS1 prompt\n\
-export PS1=\"\[\e[0;32m\]\u@\h\[\e[m\]:\[\e[0;34m\]\w\[\e[m\]\$ \"\
-" >> ${HOME}/.bashrc
-
-###############################################################################
-# (15) Default command to start an interactive bash shell
+# (13) Default command to start an interactive bash shell
 ###############################################################################
 CMD ["bash", "-i"]
