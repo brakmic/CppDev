@@ -196,6 +196,8 @@ Docker Hub publishing requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Store
 
 Use a dedicated Docker Hub personal access token with read and write permissions only. Do not grant delete or account administration permissions. Set an expiration where possible and rotate the token regularly.
 
+Docker Hub automated builds are disabled for this repository. GitHub Actions is the only build and publish path.
+
 ## Platform notes
 
 - The release workflow builds `linux/amd64` and `linux/arm64` images.

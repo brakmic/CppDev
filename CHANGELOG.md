@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format follows Keep
 
 ### Changed
 
+- Docker Hub automated builds are disabled; GitHub Actions is the only build and publish path.
 - The release workflow uses a protected `release` environment, least-privilege job permissions, and a Docker Hub token that is passed only to the login step.
 - All third-party GitHub Actions are pinned to commit SHAs.
 - The release workflow uses the current major versions of the Docker GitHub Actions with the Node.js 24 runtime.
