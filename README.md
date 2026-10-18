@@ -194,9 +194,9 @@ The CI workflow builds and smoke tests both images on every push and pull reques
 
 The same tag creates a GitHub Release from its signed annotation.
 
-Docker Hub publishing requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Store them as environment secrets in a `release` environment with required reviewers. The publish job runs in that environment, so tag releases wait for approval before the credentials are released. If either secret is missing, only GHCR is published. GHCR publishing uses the built-in, short-lived `GITHUB_TOKEN`.
+Docker Hub publishing requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Store them as environment secrets in a `release` environment restricted to `v*` tags. The publish job runs in that environment, so tag releases publish without manual approval. If either secret is missing, only GHCR is published. GHCR publishing uses the built-in, short-lived `GITHUB_TOKEN`.
 
-Use a dedicated Docker Hub personal access token with read and write permissions only. Do not grant delete or account administration permissions. Store the token only in the protected `release` environment. GitHub does not renew Docker Hub tokens, so a non-expiring token keeps routine releases fully automatic; rotate it immediately if it is exposed or suspected compromised. Keep two-factor authentication enabled on the Docker Hub account.
+Use a dedicated Docker Hub personal access token with read and write permissions only. Do not grant delete or account administration permissions. Store the token only in the `release` environment. GitHub does not renew Docker Hub tokens, so a non-expiring token keeps routine releases fully automatic. Rotate it immediately if it is exposed or suspected compromised. Keep two-factor authentication enabled on the Docker Hub account.
 
 Docker Hub automated builds are disabled for this repository. GitHub Actions is the only build and publish path.
 
