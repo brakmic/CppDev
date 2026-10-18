@@ -72,7 +72,7 @@ jobs:
 
       - name: Extract metadata for GHCR
         id: meta-ghcr
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/cppdev
           tags: |
@@ -95,7 +95,7 @@ jobs:
       - name: Extract metadata for Docker Hub
         id: meta-dockerhub
         if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.DOCKERHUB_USERNAME }}/cppdev
           tags: |
@@ -118,7 +118,7 @@ jobs:
 
       - name: Extract metadata for the devcontainer image
         id: meta-devcontainer
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/cppdev
           tags: |
