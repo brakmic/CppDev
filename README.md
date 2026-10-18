@@ -192,7 +192,9 @@ The CI workflow builds and smoke tests both images on every push and pull reques
 - `brakmic/cppdev` and `ghcr.io/<owner>/cppdev` for `linux/amd64` and `linux/arm64`,
 - `brakmic/cppdev:devcontainer` and `ghcr.io/<owner>/cppdev:devcontainer`.
 
-Docker Hub publishing requires the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. GHCR publishing uses the built-in `GITHUB_TOKEN`. If the Docker Hub secrets are absent, only GHCR is published.
+Docker Hub publishing requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Store them as environment secrets in a `release` environment with required reviewers. The publish job runs in that environment, so tag releases wait for approval before the credentials are released. If either secret is missing, only GHCR is published. GHCR publishing uses the built-in, short-lived `GITHUB_TOKEN`.
+
+Use a dedicated Docker Hub personal access token with read and write permissions only. Do not grant delete or account administration permissions. Set an expiration where possible and rotate the token regularly.
 
 ## Platform notes
 
@@ -205,6 +207,10 @@ Docker Hub publishing requires the repository secrets `DOCKERHUB_USERNAME` and `
 - The `cppdev` user has passwordless sudo, which is convenient in a development container but not appropriate for shared or production hosts.
 - The dev container mounts the host Docker socket. Any process in the container can control the host Docker daemon. Use it only with code you trust.
 - The image is a development environment, not a hardened runtime image.
+- The Docker Hub token is passed only to the login step and is never exported as a job-wide environment variable.
+- GitHub Actions used by the workflow are pinned to commit SHAs.
+- The publish job has `packages: write` permission only in the release job; the build job is read-only.
+- Enable secret scanning and push protection for the repository to catch accidental credential commits.
 
 ## Troubleshooting
 
